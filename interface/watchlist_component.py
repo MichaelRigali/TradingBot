@@ -2,7 +2,9 @@ import tkinter as tk
 import typing
 
 from models import *
+
 from interface.styling import *
+
 
 class Watchlist(tk.Frame):
     def __init__(self, binance_contracts: typing.Dict[str, Contract], bitmex_contracts: typing.Dict[str, Contract],

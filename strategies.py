@@ -1,6 +1,6 @@
 import logging
-import time
 from typing import *
+import time
 
 from threading import Timer
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger()
 
 
-TF_EQUIV = {"1m": 60, "5m": 300, "15m": 900, "30": 1800, "1h": 3600, "4h": 14400}
+TF_EQUIV = {"1m": 60, "5m": 300, "15m": 900, "30m": 900, "1h": 3600, "4h": 14400}
 
 
 class Strategy:
@@ -65,6 +65,12 @@ class Strategy:
             elif price < last_candle.low:
                 last_candle.low = price
 
+            # Check Take profit / Stop loss
+
+            for trade in self.trades:
+                if trade.status == "open" and trade.entry_price is not None:
+                    self._check_tp_sl(trade)
+
             return "same_candle"
 
         # Missing Candle(s)
@@ -76,13 +82,15 @@ class Strategy:
             logger.info("%s missing %s candles for %s %s (%s %s)", self.exchange, missing_candles, self.contract.symbol,
                         self.tf, timestamp, last_candle.timestamp)
 
-            for missing_candles in range(missing_candles):
+            for missing in range(missing_candles):
                 new_ts = last_candle.timestamp + self.tf_equiv
                 candle_info = {'ts': new_ts, 'open': last_candle.close, 'high': last_candle.close,
                                'low': last_candle.close, 'close': last_candle.close, 'volume': 0}
                 new_candle = Candle(candle_info, self.tf, "parse_trade")
 
                 self.candles.append(new_candle)
+
+                last_candle = new_candle
 
             new_ts = last_candle.timestamp + self.tf_equiv
             candle_info = {'ts': new_ts, 'open': price, 'high': price, 'low': price, 'close': price, 'volume': size}
@@ -92,10 +100,25 @@ class Strategy:
 
             return "new_candle"
 
+        # New Candle
+
+        elif timestamp >= last_candle.timestamp + self.tf_equiv:
+            new_ts = last_candle.timestamp + self.tf_equiv
+            candle_info = {'ts': new_ts, 'open': price, 'high': price, 'low': price, 'close': price, 'volume': size}
+            new_candle = Candle(candle_info, self.tf, "parse_trade")
+
+            self.candles.append(new_candle)
+
+            logger.info("%s New candle for %s %s", self.exchange, self.contract.symbol, self.tf)
+
+            return "new_candle"
+
     def _check_order_status(self, order_id):
+
         order_status = self.client.get_order_status(self.contract, order_id)
 
         if order_status is not None:
+
             logger.info("%s order status: %s", self.exchange, order_status.status)
 
             if order_status.status == "filled":
@@ -117,7 +140,7 @@ class Strategy:
         order_side = "buy" if signal_result == 1 else "sell"
         position_side = "long" if signal_result == 1 else "short"
 
-        self._add_log(f"{position_side} signal on {self.contract.symbol} {self.tf}")
+        self._add_log(f"{position_side.capitalize()} signal on {self.contract.symbol} {self.tf}")
 
         order_status = self.client.place_order(self.contract, "MARKET", trade_size, order_side)
 
@@ -125,6 +148,8 @@ class Strategy:
             self._add_log(f"{order_side.capitalize()} order placed on {self.exchange} | Status: {order_status.status}")
 
             self.ongoing_position = True
+
+            avg_fill_price = None
 
             if order_status.status == "filled":
                 avg_fill_price = order_status.avg_price
@@ -136,6 +161,41 @@ class Strategy:
                                "contract": self.contract, "strategy": self.stat_name, "side": position_side,
                                "status": "open", "pnl": 0, "quantity": trade_size, "entry_id": order_status.order_id})
             self.trades.append(new_trade)
+
+    def _check_tp_sl(self, trade: Trade):
+
+        tp_triggered = False
+        sl_triggered = False
+
+        price = self.candles[-1].close
+
+        if trade.side == "long":
+            if self.stop_loss is not None:
+                if price <= trade.entry_price * (1 - self.stop_loss / 100):
+                    sl_triggered = True
+            if self.take_profit is not None:
+                if price >= trade.entry_price * (1 + self.take_profit / 100):
+                    tp_triggered = True
+
+        elif trade.side == "short":
+            if self.stop_loss is not None:
+                if price >= trade.entry_price * (1 + self.stop_loss / 100):
+                    sl_triggered = True
+            if self.take_profit is not None:
+                if price <= trade.entry_price * (1 - self.take_profit / 100):
+                    tp_triggered = True
+
+        if tp_triggered or sl_triggered:
+
+            self._add_log(f"{'Stop loss' if sl_triggered else 'Take profit'} for {self.contract.symbol} {self.tf}")
+
+            order_side = "SELL" if trade.side == "long" else "BUY"
+            order_status = self.client.place_order(self.contract, "MARKET", trade.quantity, order_side)
+
+            if order_status is not None:
+                self._add_log(f"Exit order on {self.contract.symbol} {self.tf} placed successfully")
+                trade.status = "closed"
+                self.ongoing_position = False
 
 
 class TechnicalStrategy(Strategy):
@@ -193,8 +253,6 @@ class TechnicalStrategy(Strategy):
         macd_line, macd_signal = self._macd()
         rsi = self._rsi()
 
-        print(rsi, macd_line, macd_signal)
-
         if rsi < 30 and macd_line > macd_signal:
             return 1
         elif rsi > 70 and macd_line < macd_signal:
@@ -203,12 +261,12 @@ class TechnicalStrategy(Strategy):
             return 0
 
     def check_trade(self, tick_type: str):
+        if tick_type == "new_candle" and not self.ongoing_position:
+            signal_result = self._check_signal()
 
-        if tick_type == "new_candle" and not self.ongoing_position :
-            signal_result = self._check_signal()\
-
-            if signal_result in [-1, 1]:
+            if signal_result in [1, -1]:
                 self._open_position(signal_result)
+
 
 class BreakoutStrategy(Strategy):
     def __init__(self, client, contract: Contract, exchange: str, timeframe: str, balance_pct: float, take_profit: float,
@@ -221,14 +279,18 @@ class BreakoutStrategy(Strategy):
 
         if self.candles[-1].close > self.candles[-2].high and self.candles[-1].volume > self._min_volume:
             return 1
-        if self.candles[-1].close < self.candles[-2].low and self.candles[-1].volume > self._min_volume:
+        elif self.candles[-1].close < self.candles[-2].low and self.candles[-1].volume > self._min_volume:
             return -1
         else:
             return 0
 
     def check_trade(self, tick_type: str):
+
         if not self.ongoing_position:
             signal_result = self._check_signal()
 
-            if signal_result in [-1, 1]:
+            if signal_result in [1, -1]:
                 self._open_position(signal_result)
+
+
+

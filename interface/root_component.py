@@ -13,13 +13,15 @@ from interface.strategy_component import StrategyEditor
 
 logger = logging.getLogger()
 
+
 class Root(tk.Tk):
     def __init__(self, binance: BinanceFuturesClient, bitmex: BitmexClient):
         super().__init__()
-        self.title("Trading Bot")
 
         self.binance = binance
         self.bitmex = bitmex
+
+        self.title("Trading Bot")
 
         self.configure(bg=BG_COLOR)
 
@@ -45,6 +47,8 @@ class Root(tk.Tk):
 
     def _update_ui(self):
 
+        # Logs
+
         for log in self.bitmex.logs:
             if not log['displayed']:
                 self.logging_frame.add_log(log['log'])
@@ -52,8 +56,36 @@ class Root(tk.Tk):
 
         for log in self.binance.logs:
             if not log['displayed']:
-                self._logging_frame.add_log(log['log'])
+                self.logging_frame.add_log(log['log'])
                 log['displayed'] = True
+
+        # Trades and Logs
+
+        for client in [self.binance, self.bitmex]:
+
+            try:
+
+                for b_index, strat in client.strategies.items():
+                    for log in strat.logs:
+                        if not log['displayed']:
+                            self.logging_frame.add_log(log['log'])
+                            log['displayed'] = True
+
+                    for trade in strat.trades:
+                        if trade.time not in self._trades_frame.body_widgets['symbol']:
+                            self._trades_frame.add_trade(trade)
+
+                        if trade.contract.exchange == "binance":
+                            precision = trade.contract.price_decimals
+                        else:
+                            precision = 8
+
+                        pnl_str = "{0:.{prec}f}".format(trade.pnl, prec=precision)
+                        self._trades_frame.body_widgets['pnl_var'][trade.time].set(pnl_str)
+                        self._trades_frame.body_widgets['status_var'][trade.time].set(trade.status.capitalize())
+
+            except RuntimeError as e:
+                logger.error("Error while looping through strategies dictionary: %s", e)
 
         # Watchlist prices
 
@@ -97,5 +129,7 @@ class Root(tk.Tk):
                     self._watchlist_frame.body_widgets['ask_var'][key].set(price_str)
 
         except RuntimeError as e:
-            logger.error("Error while looping through the watchlist dictionary: %s,", e)
+            logger.error("Error while looping through watchlist dictionary: %s", e)
+
+
         self.after(1500, self._update_ui)

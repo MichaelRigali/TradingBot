@@ -8,11 +8,13 @@ from connectors.bitmex import BitmexClient
 
 from strategies import TechnicalStrategy, BreakoutStrategy
 
+
 if typing.TYPE_CHECKING:
     from interface.root_component import Root
 
+
 class StrategyEditor(tk.Frame):
-    def __init__(self, root, binance: BinanceFuturesClient, bitmex: BitmexClient, *args, **kwargs):
+    def __init__(self, root: "Root", binance: BinanceFuturesClient, bitmex: BitmexClient, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.root = root
@@ -58,7 +60,8 @@ class StrategyEditor(tk.Frame):
             {"code_name": "activation", "widget": tk.Button, "data_type": float, "text": "OFF",
              "bg": "darkred", "command": self._switch_strategy},
             {"code_name": "delete", "widget": tk.Button, "data_type": float, "text": "X",
-             "bg": "darkred", "command": self._delete_row}
+             "bg": "darkred", "command": self._delete_row},
+
         ]
 
         self._extra_params = {
@@ -66,7 +69,7 @@ class StrategyEditor(tk.Frame):
                 {"code_name": "rsi_length", "name": "RSI Periods", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_fast", "name": "MACD Fast Length", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_slow", "name": "MACD Slow Length", "widget": tk.Entry, "data_type": int},
-                {"code_name": "ema_signal", "name": "MACD Signal Length", "widget": tk.Entry, "data_type": int}
+                {"code_name": "ema_signal", "name": "MACD Signal Length", "widget": tk.Entry, "data_type": int},
             ],
             "Breakout": [
                 {"code_name": "min_volume", "name": "Minimum Volume", "widget": tk.Entry, "data_type": float},
@@ -101,9 +104,8 @@ class StrategyEditor(tk.Frame):
                 self.body_widgets[code_name][b_index] = tk.Entry(self._table_frame, justify=tk.CENTER)
             elif base_param['widget'] == tk.Button:
                 self.body_widgets[code_name][b_index] = tk.Button(self._table_frame, text=base_param['text'],
-                                                                  bg=base_param['bg'], fg=FG_COLOR,
-                                                                  command=lambda frozen_command=base_param[
-                                                                      'command']: frozen_command(b_index))
+                                        bg=base_param['bg'], fg=FG_COLOR,
+                                        command=lambda frozen_command=base_param['command']: frozen_command(b_index))
             else:
                 continue
 
@@ -118,6 +120,7 @@ class StrategyEditor(tk.Frame):
         self._body_index += 1
 
     def _delete_row(self, b_index: int):
+
         for element in self._base_params:
             self.body_widgets[element['code_name']][b_index].grid_forget()
 
@@ -148,9 +151,8 @@ class StrategyEditor(tk.Frame):
             temp_label.grid(row=row_nb, column=0)
 
             if param['widget'] == tk.Entry:
-                self._extra_input[code_name] = tk.Entry(self._popup_window, bg=BG_COLOR_2, justify=tk.CENTER,
-                                                        fg=FG_COLOR,
-                                                        insertbackground=FG_COLOR)
+                self._extra_input[code_name] = tk.Entry(self._popup_window, bg=BG_COLOR_2, justify=tk.CENTER, fg=FG_COLOR,
+                                      insertbackground=FG_COLOR)
                 if self._additional_parameters[b_index][code_name] is not None:
                     self._extra_input[code_name].insert(tk.END, str(self._additional_parameters[b_index][code_name]))
             else:
@@ -159,6 +161,8 @@ class StrategyEditor(tk.Frame):
             self._extra_input[code_name].grid(row=row_nb, column=1)
 
             row_nb += 1
+
+        # Validation Button
 
         validation_button = tk.Button(self._popup_window, text="Validate", bg=BG_COLOR_2, fg=FG_COLOR,
                                       command=lambda: self._validate_parameters(b_index))
@@ -175,6 +179,7 @@ class StrategyEditor(tk.Frame):
                 self._additional_parameters[b_index][code_name] = None
             else:
                 self._additional_parameters[b_index][code_name] = param['data_type'](self._extra_input[code_name].get())
+
         self._popup_window.destroy()
 
     def _switch_strategy(self, b_index: int):
@@ -190,6 +195,7 @@ class StrategyEditor(tk.Frame):
             if self._additional_parameters[b_index][param['code_name']] is None:
                 self.root.logging_frame.add_log(f"Missing {param['code_name']} parameter")
                 return
+
         symbol = self.body_widgets['contract_var'][b_index].get().split("_")[0]
         timeframe = self.body_widgets['timeframe_var'][b_index].get()
         exchange = self.body_widgets['contract_var'][b_index].get().split("_")[1]
@@ -205,7 +211,6 @@ class StrategyEditor(tk.Frame):
             if strat_selected == "Technical":
                 new_strategy = TechnicalStrategy(self._exchanges[exchange], contract, exchange, timeframe, balance_pct,
                                                  take_profit, stop_loss, self._additional_parameters[b_index])
-
             elif strat_selected == "Breakout":
                 new_strategy = BreakoutStrategy(self._exchanges[exchange], contract, exchange, timeframe, balance_pct,
                                                 take_profit, stop_loss, self._additional_parameters[b_index])
@@ -218,7 +223,8 @@ class StrategyEditor(tk.Frame):
                 self.root.logging_frame.add_log(f"No historical data retrieved for {contract.symbol}")
                 return
 
-            new_strategy._check_signal()
+            if exchange == "Binance":
+                self._exchanges[exchange].subscribe_channel([contract], "aggTrade")
 
             self._exchanges[exchange].strategies[b_index] = new_strategy
 
@@ -242,3 +248,4 @@ class StrategyEditor(tk.Frame):
 
             self.body_widgets['activation'][b_index].config(bg="darkred", text="OFF")
             self.root.logging_frame.add_log(f"{strat_selected} strategy on {symbol} / {timeframe} stopped")
+
