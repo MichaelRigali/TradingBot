@@ -24,7 +24,8 @@ logger.addHandler(file_handler)
 
 if __name__ == '__main__':
     binance = BinanceFuturesClient("3e574effb792bb8bdf3b0460c6fb7ef9326bbc6754a4ddacd5720e083ba0ba40",
-                                   "ff20681594618ce5cb1d44de805e2670d20d1d02ea0662866e3620adb406d483", True)
+                                   "ff20681594618ce5cb1d44de805e2670d20d1d02ea0662866e3620adb406d483",
+                                   testnet = True, futures=True)
 
     bitmex = BitmexClient("uHXdtitZKBe2ET8UgnSjyTJa", "1bN-ILBxWEWVD9yzEbrMRhjGgfWYuxYjVCC-vG0M7Mg3m_q8", True)
 

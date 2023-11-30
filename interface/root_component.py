@@ -1,5 +1,7 @@
 import tkinter as tk
+from tkinter.messagebox import askquestion
 import logging
+import json
 
 from connectors.bitmex import BitmexClient
 from connectors.binance_futures import BinanceFuturesClient
@@ -22,8 +24,16 @@ class Root(tk.Tk):
         self.bitmex = bitmex
 
         self.title("Trading Bot")
+        self.protocol("WM_DELETE_WINDOW", self._ask_before_close)
 
         self.configure(bg=BG_COLOR)
+
+        self.main_menu = tk.Menu(self)
+        self.configure(menu=self.main_menu)
+
+        self.workspace_menu = tk.Menu(self.main_menu, tearoff=False)
+        self.main_menu.add_cascade(label="Worspace", menu=self.workspace_menu)
+        self.workspace_menu.add_command(label="Save workspace", command=self._save_workspace)
 
         self._left_frame = tk.Frame(self, bg=BG_COLOR)
         self._left_frame.pack(side=tk.LEFT)
@@ -44,6 +54,16 @@ class Root(tk.Tk):
         self._trades_frame.pack(side=tk.TOP)
 
         self._update_ui()
+
+    def _ask_before_close(self):
+        result = askquestion("Confirmation", "Do you really want to exit the application?")
+        if result == "yes":
+            self.binance.reconnect = False
+            self.bitmex.reconnect = False
+            self.binance.ws.close()
+            self.bitmex.ws.close()
+
+            self.destroy()
 
     def _update_ui(self):
 
@@ -99,6 +119,9 @@ class Root(tk.Tk):
                     if symbol not in self.binance.contracts:
                         continue
 
+                    if symbol not in self.binance.ws_subscriptions["bookTicker"] and self.binance.ws_connected:
+                        self.binance.subscribe_channel([self.binance.contracts[symbol]], "bookTicker")
+
                     if symbol not in self.binance.prices:
                         self.binance.get_bid_ask(self.binance.contracts[symbol])
                         continue
@@ -133,3 +156,47 @@ class Root(tk.Tk):
 
 
         self.after(1500, self._update_ui)
+
+    def _save_workspace(self):
+        watchlist_symbols = []
+
+        for key, value in self._watchlist_frame.body_widgets['symbol'].items():
+            symbol = value.cget("text")
+            exchange = self._watchlist_frame.body_widgets['exchange'][key].cget("text")
+
+            watchlist_symbols.append((symbol, exchange))
+
+        self._watchlist_frame.db.save("watchlist", watchlist_symbols)
+
+        strategies = []
+
+        strat_widgets = self._strategy_frame.body_widgets
+
+        for b_index in strat_widgets['contract']:
+
+            strategy_type = strat_widgets['strategy_type_var'][b_index].get()
+            contract = strat_widgets['contract_var'][b_index].get()
+            timeframe = strat_widgets['timeframe_var'][b_index].get()
+            balance_pct = strat_widgets['balance_pct'][b_index].get()
+            take_profit = strat_widgets['take_profit'][b_index].get()
+            stop_loss = strat_widgets['stop_loss'][b_index].get()
+
+            extra_params = dict()
+
+            for param in self._strategy_frame.extra_params[strategy_type]:
+                code_name = param['code_name']
+
+                extra_params[code_name] = self._strategy_frame.additional_parameters[b_index][code_name]
+
+            strategies.append((strategy_type, contract, timeframe, balance_pct, take_profit, stop_loss,
+                               json.dumps(extra_params), ))
+
+
+        self._strategy_frame.db.save("strategies", strategies)
+
+        self.logging_frame.add_log("Workspace saved")
+
+
+
+
+

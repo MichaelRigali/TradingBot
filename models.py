@@ -61,7 +61,10 @@ def tick_to_decimals(tick_size: float) -> int:
         return 0
 
 class Contract:
-    def __init__(self, contract_info, exchange):
+    def __init__(self, contract_info, exchange, platform):
+
+        self.platform = platform
+
         if exchange == "binance":
             self.symbol = contract_info['symbol']
             self.base_asset = contract_info['baseAsset']

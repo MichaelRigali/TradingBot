@@ -33,8 +33,10 @@ class BitmexClient:
 
         self._public_key = public_key
         self._secret_key = secret_key
+        self.platform = "bitmex"
 
-        self._ws = None
+        self.ws: websocket.WebSocketApp
+        self.reconnect = True
 
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
@@ -105,7 +107,7 @@ class BitmexClient:
 
         if instruments is not None:
             for s in instruments:
-                contracts[s['symbol']] = Contract(s, "bitmex")
+                contracts[s['symbol']] = Contract(s, "bitmex", self.platform)
 
         return contracts
 
@@ -187,12 +189,15 @@ class BitmexClient:
                     return OrderStatus(order_status[0], "bitmex")
 
     def _start_ws(self):
-        self._ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
+        self.ws = websocket.WebSocketApp(self._wss_url, on_open=self._on_open, on_close=self._on_close,
                                          on_error=self._on_error, on_message=self._on_message)
 
         while True:
             try:
-                self._ws.run_forever()
+                if self.reconnect:
+                    self.ws.run_forever()
+                else:
+                    break
             except Exception as e:
                 logger.error("Bitmex error in run_forever() method: %s", e)
             time.sleep(2)
@@ -275,7 +280,7 @@ class BitmexClient:
         data['args'].append(topic)
 
         try:
-            self._ws.send(json.dumps(data))
+            self.ws.send(json.dumps(data))
         except Exception as e:
             logger.error("Websocket error while subscribing to %s: %s", topic, e)
 
