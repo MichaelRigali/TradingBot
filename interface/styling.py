@@ -1,6 +1,10 @@
-BG_COLOR = "gray12"
-BG_COLOR_2 = "#1c2c5c"
-FG_COLOR = "white"
-FG_COLOR_2 = "SteelBlue1"
-GLOBAL_FONT = ("Calibri", 11, "normal")
-BOLD_FONT = ("Calibri", 11, "bold")
+BG_COLOR = "#063970"
+BG_COLOR_2 = "#063970"
+BG_COLOR_3 = "white"
+FG_COLOR = "WHITE"
+FG_COLOR_2 = "#063970"
+GLOBAL_FONT = ("Calibri", 10, "normal")
+GLOBAL_FONT2 = ("Calibri", 11, "bold")
+GLOBAL_FONT3 = ("Calibri", 12, "bold")
+GLOBAL_FONT4 = ("Calibri", 5, "bold")
+BOLD_FONT = ("Calibri", 13, "bold")

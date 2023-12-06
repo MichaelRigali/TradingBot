@@ -28,7 +28,7 @@ class Autocomplete(tk.Entry):
                 self._lb_open = False
         elif not self._lb_open:
             self._lb = tk.Listbox(height=8)
-            self._lb.place(x=self.winfo_x() + self.winfo_width(), y=self.winfo_y() + self.winfo_height() + 10)
+            self._lb.place(x=self.winfo_x() + 2, y=self.winfo_y() + self.winfo_height() + 4)
             self._lb_open = True
 
             # Bind the ListboxSelect event to handle both arrow key selection and left-click

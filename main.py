@@ -30,4 +30,5 @@ if __name__ == '__main__':
     bitmex = BitmexClient("uHXdtitZKBe2ET8UgnSjyTJa", "1bN-ILBxWEWVD9yzEbrMRhjGgfWYuxYjVCC-vG0M7Mg3m_q8", True)
 
     root = Root(binance, bitmex)
+    root.geometry("2250x350")
     root.mainloop()
