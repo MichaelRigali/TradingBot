@@ -61,10 +61,7 @@ def tick_to_decimals(tick_size: float) -> int:
         return 0
 
 class Contract:
-    def __init__(self, contract_info, exchange, platform):
-
-        self.platform = platform
-
+    def __init__(self, contract_info, exchange):
         if exchange == "binance":
             self.symbol = contract_info['symbol']
             self.base_asset = contract_info['baseAsset']
@@ -73,6 +70,21 @@ class Contract:
             self.quantity_decimals = contract_info['quantityPrecision']
             self.tick_size = 1 / pow(10, contract_info['pricePrecision'])
             self.lot_size = 1 / pow(10, contract_info['quantityPrecision'])
+
+        elif exchange == "binance_spot":
+            self.symbol = contract_info['symbol']
+            self.base_asset = contract_info['baseAsset']
+            self.quote_asset = contract_info['quoteAsset']
+
+            # The actual lot size and tick size on Binance spot can be found in the 'filters' fields
+            # contract_info['filters'] is a list
+            for b_filter in contract_info['filters']:
+                if b_filter['filterType'] == 'PRICE_FILTER':
+                    self.tick_size = float(b_filter['tickSize'])
+                    self.price_decimals = tick_to_decimals(float(b_filter['tickSize']))
+                if b_filter['filterType'] == 'LOT_SIZE':
+                    self.lot_size = float(b_filter['stepSize'])
+                    self.quantity_decimals = tick_to_decimals(float(b_filter['stepSize']))
 
         elif exchange == "bitmex":
             self.symbol = contract_info['symbol']

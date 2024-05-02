@@ -66,15 +66,3 @@ class ScrollableFrame(tk.Frame):
 
         self.canvas.yview_scroll(int(-1 * (event.delta / 60)), "units")  # Decrease 60 to increase the sensitivity
 
-
-
-
-
-
-
-
-
-
-
-
-

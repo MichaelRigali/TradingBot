@@ -16,7 +16,7 @@ class TradesWatch(tk.Frame):
 
         self._headers = ["time", "symbol", "exchange", "strategy", "side", "quantity", "status", "pnl"]
 
-        self._table_frame = tk.Frame(self, bg=BG_COLOR, bd=2, relief=tk.SOLID, borderwidth=1)
+        self._table_frame = tk.Frame(self, bg=BG_COLOR)
         self._table_frame.pack(side=tk.TOP)
 
         self._col_width = 12  # Fixed headers width to match the table body width
@@ -34,7 +34,7 @@ class TradesWatch(tk.Frame):
 
         self._headers_frame.pack(side=tk.TOP, anchor="nw")
 
-        self._body_frame = ScrollableFrame(self, bg=BG_COLOR, height=270, bd=2, relief=tk.SOLID, borderwidth=1)
+        self._body_frame = ScrollableFrame(self, bg=BG_COLOR, height=250)
         self._body_frame.pack(side=tk.TOP, anchor="nw", fill=tk.X)
 
         for h in self._headers:
@@ -114,15 +114,4 @@ class TradesWatch(tk.Frame):
         self.body_widgets['pnl'][t_index].grid(row=b_index, column=7)
 
         self._body_index += 1
-
-
-
-
-
-
-
-
-
-
-
 

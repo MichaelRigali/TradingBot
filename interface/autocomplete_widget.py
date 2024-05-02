@@ -45,6 +45,11 @@ class Autocomplete(tk.Entry):
             for symbol in symbols_matched:
                 self._lb.insert(tk.END, symbol)
 
+        else:  # If no match, closes the Listbox if it was open
+            if self._lb_open:
+                self._lb.destroy()
+                self._lb_open = False
+
     def _select(self, event: tk.Event):
         if self._lb_open:
             self._var.set(self._lb.get(tk.ACTIVE))

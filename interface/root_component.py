@@ -226,29 +226,3 @@ class Root(tk.Tk):
         self._strategy_frame.db.save("strategies", strategies)
 
         self.logging_frame.show_popup("Workspace has been saved successfully! \n You may now exit the application.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

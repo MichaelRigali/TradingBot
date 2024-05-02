@@ -18,7 +18,6 @@ from database import WorkspaceData
 if typing.TYPE_CHECKING:
     from interface.root_component import Root
 
-import tkinter.font as tkfont
 
 
 class StrategyEditor(tk.Frame):
@@ -110,7 +109,7 @@ class StrategyEditor(tk.Frame):
         for idx, base_param in enumerate(self._base_params):
             header_text = base_param.get('header', '')
             relief_style = tk.FLAT if not header_text else tk.GROOVE  # Check if the header text is empty
-            header = tk.Label(self._headers_frame, text=header_text, bg="#0A162C", fg=FG_COLOR, font=GLOBAL_FONT2,
+            header = tk.Label(self._headers_frame, text=header_text, bg="#0A162C", fg=FG_COLOR,
                               width=base_param['width'], bd=1, relief=relief_style)  # Set relief based on the condition
             header.grid(row=0, column=idx, sticky="nsew", padx=0, pady=3)
 

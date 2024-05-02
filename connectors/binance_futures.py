@@ -19,11 +19,6 @@ from strategies import TechnicalStrategy, BreakoutStrategy
 
 logger = logging.getLogger()
 
-import logging
-import requests
-
-logger = logging.getLogger()
-
 class BinanceFuturesClient:
     def __init__(self, public_key: str, secret_key: str, testnet: bool, futures: bool):
 
@@ -121,7 +116,7 @@ class BinanceFuturesClient:
 
         if exchange_info is not None:
             for contract_data in exchange_info['symbols']:
-                contracts[contract_data['symbol']] = Contract(contract_data, "binance", self.platform)
+                contracts[contract_data['symbol']] = Contract(contract_data, "binance")
 
         return contracts
 
@@ -202,18 +197,57 @@ class BinanceFuturesClient:
     def cancel_order(self, contract: Contract, order_id: int) -> OrderStatus:
 
         data = dict()
-        data['orderID'] = order_id
+        data['orderId'] = order_id
         data['symbol'] = contract.symbol
 
-        data['timestamp'] = self._get_server_time()
+        data['timestamp'] = int(time.time() * 1000)
         data['signature'] = self._generate_signature(data)
 
-        order_status = self._make_request("DELETE", "/fapi/v1/order", data)
+        if self.futures:
+            order_status = self._make_request("DELETE", "/fapi/v1/order", data)
+        else:
+            order_status = self._make_request("DELETE", "/api/v3/order", data)
 
         if order_status is not None:
-            order_status = OrderStatus(order_status, "binance")
+            if not self.futures:
+                # Get the average execution price based on the recent trades
+                order_status['avgPrice'] = self._get_execution_price(contract, order_id)
+            order_status = OrderStatus(order_status, self.platform)
 
         return order_status
+
+    def _get_execution_price(self, contract: Contract, order_id: int) -> float:
+
+        """
+        For Binance Spot only, find the equivalent of the 'avgPrice' key on the futures side.
+        The average price is the weighted sum of each trade price related to the order_id
+        :param contract:
+        :param order_id:
+        :return:
+        """
+
+        data = dict()
+        data['timestamp'] = int(time.time() * 1000)
+        data['symbol'] = contract.symbol
+        data['signature'] = self._generate_signature(data)
+
+        trades = self._make_request("GET", "/api/v3/myTrades", data)
+
+        avg_price = 0
+
+        if trades is not None:
+
+            executed_qty = 0
+            for t in trades:
+                if t['orderId'] == order_id:
+                    executed_qty += float(t['qty'])
+
+            for t in trades:
+                if t['orderId'] == order_id:
+                    fill_pct = float(t['qty']) / executed_qty
+                    avg_price += (float(t['price']) * fill_pct)  # Weighted sum
+
+        return round(round(avg_price / contract.tick_size) * contract.tick_size, 8)
 
     def get_order_status(self, contract: Contract, order_id: int) -> OrderStatus:
 
